@@ -24,11 +24,11 @@ MindAudio is a toolbox of audio models and algorithms based on [MindSpore](https
 
 The following is the corresponding `mindaudio` versions and supported `mindspore` versions.
 
-| `mindspore`  | `mindaudio` | 
+| `mindspore`  | `mindaudio` |
 |--------------|-------------|
-| `master`     | `master`    | 
-| `2.3.0`      | `0.4`       | 
-| `2.2.10`     | `0.3`       | 
+| `master`     | `master`    |
+| `2.3.0`      | `0.4`       |
+| `2.2.10`     | `0.3`       |
 
 ### data processing
 

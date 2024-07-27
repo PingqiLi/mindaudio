@@ -9,22 +9,29 @@ from mindspore.context import ParallelMode
 from mindspore.nn import TrainOneStepCell
 from mindspore.nn.optim import Adam
 from mindspore.train import Model
-from mindspore.train.callback import (
-    CheckpointConfig,
-    LossMonitor,
-    ModelCheckpoint,
-    TimeMonitor,
-)
+from mindspore.train.callback import CheckpointConfig, ModelCheckpoint
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
 from mindaudio.loss.ctc_loss import NetWithCTCLoss
 from mindaudio.models.deepspeech2 import DeepSpeechModel
 from mindaudio.scheduler.scheduler_factory import step_lr
+from mindaudio.utils.callback import (
+    CalRunTimeCallback,
+    EvalCallback,
+    MemoryStartTimeCallback,
+    ResumeCallback,
+    TimeMonitor,
+)
+from mindaudio.utils.config import get_config
 from mindaudio.utils.hparams import parse_args
+from mindaudio.utils.log import get_logger
+
+logger = get_logger()
+config = get_config("deepspeech2")
 
 
 def train(args):
-    ds_train = create_dataset(
+    train_dataset = create_dataset(
         audio_conf=args.SpectConfig,
         manifest_filepath=args.TrainingConfig.train_manifest,
         labels=args.labels,
@@ -35,7 +42,7 @@ def train(args):
         group_size=group_size,
     )
 
-    steps_size = ds_train.get_dataset_size()
+    steps_size = train_dataset.get_dataset_size()
     lr = step_lr(
         lr_init=args.OptimConfig.learning_rate,
         total_epochs=args.TrainingConfig.epochs,
@@ -63,13 +70,31 @@ def train(args):
     )
     train_net = TrainOneStepCell(loss_net, optimizer)
     train_net.set_train(True)
+
+    start_epoch_num = 0
     if args.Pretrained_model != "":
         param_dict = load_checkpoint(args.Pretrained_model)
+        start_epoch_num = int(param_dict.get("epoch_num", 0).asnumpy().item())
         load_param_into_net(train_net, param_dict)
         print("Successfully loading the pre-trained model")
 
+    callback_list = [
+        MemoryStartTimeCallback(),
+        TimeMonitor(args.TrainConfig.epoch, steps_size),
+        ResumeCallback(start_epoch_num=start_epoch_num),
+    ]
+
     model = Model(train_net)
-    callback_list = [TimeMonitor(steps_size), LossMonitor()]
+
+    logger.info("Training start.")
+    model.train(
+        config.max_epoch - start_epoch_num,
+        train_dataset,
+        callbacks=callback_list,
+        dataset_sink_mode=False,
+    )
+
+    # callback_list = [TimeMonitor(steps_size), LossMonitor()]
 
     if args.is_distributed:
         args.CheckpointConfig.ckpt_path = os.path.join(

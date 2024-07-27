@@ -14,7 +14,7 @@ from mindspore.context import ParallelMode
 from mindspore.nn.optim import Adam
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train import Model
-from mindspore.train.callback import CheckpointConfig, ModelCheckpoint, SummaryCollector
+from mindspore.train.callback import CheckpointConfig, ModelCheckpoint
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
 from mindaudio.scheduler.scheduler_factory import ASRWarmupLR
@@ -64,8 +64,8 @@ def train():
         device_id=get_device_id(),
         save_graphs=config.save_graphs,
         save_graphs_path=graph_dir,
+        jit_config={"jit_level": "O2"},
     )
-    mindspore.set_context(jit_config={"jit_level": "O2"})
 
     device_num = get_device_num()
     rank = get_rank_id()
